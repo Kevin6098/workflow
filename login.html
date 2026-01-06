@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Workflow System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="login-page" class="login-container">
+        <div class="login-box">
+            <h1>📋 Workflow System</h1>
+            <p>Sign in to continue</p>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="login-form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" placeholder="Enter your email" required>
+                </div>
+                <div class="login-form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="login-btn">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Wait for app.js to load and initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            // Small delay to ensure app.js is fully loaded
+            setTimeout(() => {
+                // Initialize app (this loads users and ensures correct credentials)
+                if (typeof loadFromStorage === 'function') {
+                    loadFromStorage();
+                }
+                
+                // Ensure default users exist
+                if (typeof users !== 'undefined' && users) {
+                    const adminIndex = users.findIndex(u => u.id === 1);
+                    if (adminIndex >= 0) {
+                        users[adminIndex] = { ...users[adminIndex], email: 'admin@test.com', password: '12345', role: 'ADMIN' };
+                    } else {
+                        users.unshift({ id: 1, name: "Dr. John Smith", email: "admin@test.com", password: "12345", role: "ADMIN" });
+                    }
+                    
+                    const lecturerIndex = users.findIndex(u => u.id === 2);
+                    if (lecturerIndex >= 0) {
+                        users[lecturerIndex] = { ...users[lecturerIndex], email: 'lecturer@test.com', password: '12345', role: 'LECTURER' };
+                    } else {
+                        const adminPos = users.findIndex(u => u.id === 1);
+                        users.splice(adminPos >= 0 ? adminPos + 1 : 0, 0, { id: 2, name: "Dr. Emily Wang", email: "lecturer@test.com", password: "12345", role: "LECTURER" });
+                    }
+                }
+                
+                // Check if already logged in
+                const savedUser = localStorage.getItem('currentUser');
+                if (savedUser) {
+                    window.location.href = 'dashboard.html';
+                    return;
+                }
+
+                // Override handleLogin to redirect to dashboard
+                window.handleLogin = function(event) {
+                    event.preventDefault();
+                    const email = document.getElementById('login-email').value.trim();
+                    const password = document.getElementById('login-password').value;
+
+                    // Ensure users array is loaded
+                    if (typeof users === 'undefined' || !users || users.length === 0) {
+                        alert('System error: Users not loaded. Please refresh the page.');
+                        return;
+                    }
+
+                    const user = users.find(u => u.email === email && u.password === password);
+                    
+                    if (user) {
+                        // Save user to localStorage
+                        localStorage.setItem('currentUser', JSON.stringify({ id: user.id }));
+                        // Redirect to dashboard
+                        window.location.href = 'dashboard.html';
+                    } else {
+                        alert('Invalid email or password');
+                    }
+                };
+            }, 100);
+        });
+    </script>
+</body>
+</html>
+

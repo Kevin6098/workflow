@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Workflow System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Main Application -->
+    <div id="main-app" class="main-app">
+    <div class="header">
+        <div class="header-content">
+            <h1>📋 <span>Workflow System</span></h1>
+            <div class="header-user-info">
+                <span class="header-user-name" id="header-user-name"></span>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="nav">
+        <ul>
+            <li><a href="#" onclick="showScreen('submit-document')" class="nav-link" data-screen="submit-document">Submit Document</a></li>
+            <li><a href="#" onclick="showScreen('my-submissions')" class="nav-link" data-screen="my-submissions">My Submissions</a></li>
+            <li><a href="#" onclick="showScreen('admin-queue')" class="nav-link hidden" data-screen="admin-queue">Review Submissions</a></li>
+            <li><a href="#" onclick="showScreen('admin-panel')" class="nav-link hidden" data-screen="admin-panel">Admin Panel</a></li>
+            <li><a href="#" onclick="showScreen('user-management')" class="nav-link hidden" data-screen="user-management">User Management</a></li>
+            <li><a href="#" onclick="showScreen('course-management')" class="nav-link hidden" data-screen="course-management">Course Management</a></li>
+            <li><a href="#" onclick="showScreen('school-management')" class="nav-link hidden" data-screen="school-management">School Management</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <!-- Submit Document -->
+        <div id="submit-document" class="screen">
+            <h2>Submit Document</h2>
+            <div class="management-form">
+                <h3>Document Information</h3>
+                <div class="form-group">
+                    <label>Course</label>
+                    <select id="submit-course">
+                        <option value="">Select a course</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Document Title</label>
+                    <input type="text" id="submit-title" placeholder="Enter document title">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="submit-description" placeholder="Enter description" rows="4"></textarea>
+                </div>
+                <div class="document-upload-section">
+                    <h4>📎 Attach Documents</h4>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="file-input" multiple accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx" onchange="handleFileSelect(event)">
+                        <label for="file-input" class="file-input-label">+ Add Documents</label>
+                    </div>
+                    <div class="documents-list" id="documents-list">
+                        <div class="no-documents" id="no-documents-msg">No documents attached</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="final-submission" style="width: 20px; height: 20px; cursor: pointer;">
+                        <span style="font-weight: 600; color: var(--text);">✓ This is my final submission (ready for admin review)</span>
+                    </label>
+                    <p style="margin-top: 8px; color: var(--text-light); font-size: 0.875rem; margin-left: 30px;">
+                        Leave unchecked to save as draft. You can submit multiple times and mark as final when ready.
+                    </p>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" onclick="submitDocument()">Submit Document</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Submissions -->
+        <div id="my-submissions" class="screen active">
+            <h2>My Submissions</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <h4>Total Submissions</h4>
+                    <div class="number" id="my-submissions-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Drafts</h4>
+                    <div class="number" id="drafts-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Pending Review</h4>
+                    <div class="number" id="pending-review-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Approved</h4>
+                    <div class="number" id="approved-count">0</div>
+                </div>
+            </div>
+            <table id="lecturer-submissions-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Status</th>
+                        <th>Submitted Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Admin Review Queue -->
+        <div id="admin-queue" class="screen">
+            <h2>Review Submissions</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <h4>Pending Reviews</h4>
+                    <div class="number" id="admin-pending-count">0</div>
+                </div>
+            </div>
+            <table id="admin-queue-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Submitted By</th>
+                        <th>Status</th>
+                        <th>Submitted Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="admin-panel" class="screen">
+            <h2>Admin Panel</h2>
+            
+            <!-- User Management -->
+            <h3>User Management</h3>
+            <div class="search-box">
+                <input type="text" id="user-search" placeholder="Search users..." onkeyup="filterUsers()">
+            </div>
+            <table id="users-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <!-- Audit Log -->
+            <h3 style="margin-top: 50px;">Audit Log</h3>
+            <p style="margin-bottom: 15px; color: var(--text-light);">View all administrative changes and system actions</p>
+            <div class="search-box">
+                <input type="text" id="audit-search" placeholder="Search audit log..." onkeyup="filterAuditLog()">
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table id="audit-log-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- User Management -->
+        <div id="user-management" class="screen">
+            <h2>User Management</h2>
+            <div class="management-form">
+                <h3>Add New User</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="new-user-name" placeholder="Enter user name">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="new-user-email" placeholder="Enter user email">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addUser()">Add User</button>
+            </div>
+            <h3>All Users</h3>
+            <div class="search-box">
+                <input type="text" id="user-mgmt-search" placeholder="Search users..." onkeyup="filterUsersManagement()">
+            </div>
+            <table id="user-management-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Privileges</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Course Management -->
+        <div id="course-management" class="screen">
+            <h2>Course Management</h2>
+            <div class="management-form">
+                <h3>Add New Course</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Course Code</label>
+                        <input type="text" id="new-course-code" placeholder="e.g., DS101">
+                    </div>
+                    <div class="form-group">
+                        <label>Course Name</label>
+                        <input type="text" id="new-course-name" placeholder="Enter course name">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>School/Faculty</label>
+                    <select id="new-course-school">
+                        <option value="">Select school</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="addCourse()">Add Course</button>
+            </div>
+            <h3>All Courses</h3>
+            <div class="search-box">
+                <input type="text" id="course-search" placeholder="Search courses..." onkeyup="filterCourses()">
+            </div>
+            <table id="course-management-table">
+                <thead>
+                    <tr>
+                        <th>Course Code</th>
+                        <th>Course Name</th>
+                        <th>School/Faculty</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- School Management -->
+        <div id="school-management" class="screen">
+            <h2>School/Faculty Management</h2>
+            <div class="management-form">
+                <h3>Add New School/Faculty</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>School/Faculty Name</label>
+                        <input type="text" id="new-school-name" placeholder="Enter school/faculty name">
+                    </div>
+                    <div class="form-group">
+                        <label>School Code</label>
+                        <input type="text" id="new-school-code" placeholder="e.g., CS, MATH">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addSchool()">Add School/Faculty</button>
+            </div>
+            <h3>All Schools/Faculties</h3>
+            <div class="search-box">
+                <input type="text" id="school-search" placeholder="Search schools..." onkeyup="filterSchools()">
+            </div>
+            <table id="school-management-table">
+                <thead>
+                    <tr>
+                        <th>School Code</th>
+                        <th>School/Faculty Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
