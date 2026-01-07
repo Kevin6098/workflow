@@ -1,10 +1,10 @@
-import { useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { reviewAPI, submissionAPI } from '../services/api';
 
 function Dashboard() {
-    const { user } = useContext(AuthContext);
+    const { user } = useAuth();
     const [stats, setStats] = useState({
         mySubmissions: 0,
         pendingApproval: 0,

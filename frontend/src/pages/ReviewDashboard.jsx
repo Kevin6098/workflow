@@ -1,10 +1,10 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { reviewAPI } from '../services/api';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import Alert from '../components/common/Alert';
 
 function ReviewDashboard() {
-    const { user } = useContext(AuthContext);
+    const { user } = useAuth();
     const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ type: '', message: '' });
