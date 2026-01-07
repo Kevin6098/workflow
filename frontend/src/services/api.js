@@ -106,7 +106,14 @@ export const adminAPI = {
     deleteCourseRoleMapping: (id) => api.delete(`/admin/course-roles/${id}`),
     
     // Audit Logs
-    getAuditLogs: (limit = 100) => api.get(`/admin/audit-logs?limit=${limit}`)
+    getAuditLogs: (filters = {}) => {
+        const params = new URLSearchParams();
+        if (filters.action) params.append('action', filters.action);
+        if (filters.entity_type) params.append('entity_type', filters.entity_type);
+        if (filters.user_id) params.append('user_id', filters.user_id);
+        params.append('limit', '500');
+        return api.get(`/admin/audit-logs?${params.toString()}`);
+    }
 };
 
 export default api;

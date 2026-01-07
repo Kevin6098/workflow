@@ -49,16 +49,16 @@ All core components have been created! Follow these steps to get the system runn
    ('System Administrator', 'admin@test.com', '$2b$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yktLqN/H3O'),
    ('Dr. Emily Wang', 'lecturer@test.com', '$2b$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yktLqN/H3O');
    ```
-
+  
 ---
 
 ### Step 2: Backend Setup (5 minutes)
 
 1. **Open Terminal/Command Prompt**
 
-2. **Navigate to server directory**
+2. **Navigate to backend directory**
    ```bash
-   cd C:\Users\User\Desktop\Website\workflow\server
+   cd C:\Users\User\Desktop\Website\workflow\backend
    ```
 
 3. **Install dependencies**
@@ -97,9 +97,9 @@ All core components have been created! Follow these steps to get the system runn
 
 1. **Open NEW Terminal/Command Prompt**
 
-2. **Navigate to client directory**
+2. **Navigate to frontend directory**
    ```bash
-   cd C:\Users\User\Desktop\Website\workflow\client
+   cd C:\Users\User\Desktop\Website\workflow\frontend
    ```
 
 3. **Install dependencies**
@@ -207,7 +207,7 @@ After logging in as admin, set up the system:
 
 **Error: "Cannot find module 'bcrypt'"**
 ```bash
-cd server
+cd backend
 npm install bcrypt --save
 ```
 
@@ -235,7 +235,7 @@ npm install bcrypt --save
 ### File Upload Issues
 
 **Error: "File upload failed"**
-- Check `server/uploads/submissions/` folder exists
+   - Check `backend/uploads/submissions/` folder exists
 - Check file size (max 50MB)
 - Check file type (.pdf, .doc, .docx, etc.)
 
@@ -245,7 +245,7 @@ npm install bcrypt --save
 
 ```
 workflow/
-├── client/               Frontend (React)
+├── frontend/             Frontend (React)
 │   ├── src/
 │   │   ├── pages/        All page components
 │   │   ├── components/   Reusable components
@@ -254,7 +254,7 @@ workflow/
 │   │   └── App.jsx       Main app
 │   └── package.json
 │
-├── server/               Backend (Node.js)
+├── backend/              Backend (Node.js)
 │   ├── controllers/      Business logic
 │   ├── routes/           API routes
 │   ├── middleware/       Auth & upload

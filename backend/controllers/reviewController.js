@@ -28,7 +28,9 @@ export const getCoordinatorQueue = async (req, res) => {
                 d.name as department_name,
                 c.code as course_code,
                 c.name as course_name,
-                u.name as lecturer_name
+                u.name as lecturer_name,
+                u.email as lecturer_email,
+                (SELECT COUNT(*) FROM submission_documents sd WHERE sd.submission_id = s.id AND sd.not_applicable = FALSE) as document_count
             FROM submissions s
             JOIN sessions sess ON s.session_id = sess.id
             JOIN departments d ON s.department_id = d.id
@@ -37,15 +39,6 @@ export const getCoordinatorQueue = async (req, res) => {
             WHERE s.course_id IN (?) AND s.status = 'SUBMITTED'
             ORDER BY s.submitted_at ASC
         `, [courseIds]);
-
-        // Get documents for each submission
-        for (let submission of submissions) {
-            const [documents] = await pool.query(
-                'SELECT document_type, not_applicable FROM submission_documents WHERE submission_id = ?',
-                [submission.id]
-            );
-            submission.documents = documents;
-        }
 
         res.json({
             success: true,
@@ -210,24 +203,20 @@ export const getDeputyDeanQueue = async (req, res) => {
                 d.name as department_name,
                 c.code as course_code,
                 c.name as course_name,
-                u.name as lecturer_name
+                u.name as lecturer_name,
+                u.email as lecturer_email,
+                coord.name as coordinator_name,
+                (SELECT COUNT(*) FROM submission_documents sd WHERE sd.submission_id = s.id AND sd.not_applicable = FALSE) as document_count
             FROM submissions s
             JOIN sessions sess ON s.session_id = sess.id
             JOIN departments d ON s.department_id = d.id
             JOIN courses c ON s.course_id = c.id
             JOIN users u ON s.lecturer_user_id = u.id
+            LEFT JOIN course_role_map crm ON s.course_id = crm.course_id AND crm.active = TRUE
+            LEFT JOIN users coord ON crm.coordinator_user_id = coord.id
             WHERE s.course_id IN (?) AND s.status = 'COORDINATOR_APPROVED'
             ORDER BY s.coordinator_approved_at ASC
         `, [courseIds]);
-
-        // Get documents for each submission
-        for (let submission of submissions) {
-            const [documents] = await pool.query(
-                'SELECT document_type, not_applicable FROM submission_documents WHERE submission_id = ?',
-                [submission.id]
-            );
-            submission.documents = documents;
-        }
 
         res.json({
             success: true,

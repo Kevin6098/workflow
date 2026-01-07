@@ -575,15 +575,36 @@ export const deleteCourseRoleMapping = async (req, res) => {
 export const getAuditLogs = async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 100;
-        const [logs] = await pool.query(`
+        const { action, entity_type, user_id } = req.query;
+        
+        let query = `
             SELECT 
                 al.*,
-                u.name as user_name
+                u.name as user_name,
+                u.email as user_email
             FROM audit_logs al
             LEFT JOIN users u ON al.user_id = u.id
-            ORDER BY al.created_at DESC
-            LIMIT ?
-        `, [limit]);
+            WHERE 1=1
+        `;
+        const params = [];
+        
+        if (action) {
+            query += ' AND al.action = ?';
+            params.push(action);
+        }
+        if (entity_type) {
+            query += ' AND al.entity_type = ?';
+            params.push(entity_type);
+        }
+        if (user_id) {
+            query += ' AND al.user_id = ?';
+            params.push(user_id);
+        }
+        
+        query += ' ORDER BY al.created_at DESC LIMIT ?';
+        params.push(limit);
+
+        const [logs] = await pool.query(query, params);
 
         res.json({ success: true, logs });
     } catch (error) {

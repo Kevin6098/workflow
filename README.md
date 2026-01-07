@@ -30,8 +30,8 @@ A document workflow system for academic institutions to manage course-related do
 ### Step 2: Backend Setup
 
 ```bash
-# Navigate to server directory
-cd server
+# Navigate to backend directory
+cd backend
 
 # Install dependencies
 npm install
@@ -54,8 +54,8 @@ The backend will run on **http://localhost:5000**
 Open a NEW terminal window:
 
 ```bash
-# Navigate to client directory
-cd client
+# Navigate to frontend directory
+cd frontend
 
 # Install dependencies
 npm install
@@ -79,7 +79,7 @@ The frontend will run on **http://localhost:5173**
 
 ```
 workflow/
-├── client/                 # React Frontend
+├── frontend/               # React Frontend
 │   ├── src/
 │   │   ├── components/     # Reusable components
 │   │   ├── pages/          # Page components
@@ -89,7 +89,7 @@ workflow/
 │   │   └── index.css       # Global styles
 │   └── package.json
 │
-├── server/                 # Node.js Backend
+├── backend/                # Node.js Backend
 │   ├── config/             # Configuration files
 │   ├── controllers/        # Business logic
 │   ├── middleware/         # Auth, upload, etc.
@@ -216,7 +216,7 @@ DRAFT → SUBMITTED → COORDINATOR_APPROVED → DEAN_ENDORSED
 **Error: "Cannot connect to API"**
 - Ensure backend is running on port 5000
 - Check browser console for CORS errors
-- Verify API base URL in `client/src/services/api.js`
+- Verify API base URL in `frontend/src/services/api.js`
 
 **Error: "Login failed"**
 - Check database has sample users
@@ -226,7 +226,7 @@ DRAFT → SUBMITTED → COORDINATOR_APPROVED → DEAN_ENDORSED
 ### File Upload Issues
 
 **Error: "File upload failed"**
-- Ensure `server/uploads` directory exists
+- Ensure `backend/uploads` directory exists
 - Check file size (default limit: 50MB)
 - Verify allowed file types in `middleware/upload.js`
 
@@ -262,7 +262,7 @@ CORS_ORIGIN=http://localhost:5173
 
 ### Frontend Environment Variables
 
-Create `client/.env`:
+Create `frontend/.env`:
 
 ```env
 VITE_API_URL=http://localhost:5000/api
