@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { submissionAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import Alert from '../components/common/Alert';
 
 function MySubmissions() {
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ type: '', message: '' });
+    
+    const isAdmin = user?.privileges?.includes('ADMIN');
 
     useEffect(() => {
         loadSubmissions();
@@ -98,31 +104,47 @@ function MySubmissions() {
                                     </td>
                                     <td>{new Date(sub.created_at).toLocaleDateString()}</td>
                                     <td>
-                                        {sub.status === 'DRAFT' && (
-                                            <>
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {/* Edit button - show for DRAFT, SUBMITTED, REJECTED, or if admin */}
+                                            {(sub.status === 'DRAFT' || sub.status === 'SUBMITTED' || sub.status === 'REJECTED' || isAdmin) && (
+                                                <button 
+                                                    className="btn btn-primary btn-small" 
+                                                    onClick={() => navigate(`/submit?edit=${sub.id}`)}
+                                                    style={{ marginRight: '4px' }}
+                                                >
+                                                    ✏️ Edit
+                                                </button>
+                                            )}
+                                            
+                                            {/* Submit button - only for DRAFT */}
+                                            {sub.status === 'DRAFT' && (
                                                 <button 
                                                     className="btn btn-success btn-small" 
                                                     onClick={() => handleSubmitForReview(sub.id)}
-                                                    style={{ marginRight: '8px' }}
+                                                    style={{ marginRight: '4px' }}
                                                 >
                                                     Submit
                                                 </button>
+                                            )}
+                                            
+                                            {/* Delete button - only for DRAFT */}
+                                            {sub.status === 'DRAFT' && (
                                                 <button 
                                                     className="btn btn-danger btn-small" 
                                                     onClick={() => handleDelete(sub.id)}
                                                 >
                                                     Delete
                                                 </button>
-                                            </>
-                                        )}
-                                        {sub.status !== 'DRAFT' && (
-                                            <span style={{ color: '#999', fontSize: '0.875rem' }}>
-                                                {sub.status === 'SUBMITTED' && 'Awaiting review'}
-                                                {sub.status === 'COORDINATOR_APPROVED' && 'With Deputy Dean'}
-                                                {sub.status === 'DEAN_ENDORSED' && '✓ Endorsed'}
-                                                {sub.status === 'REJECTED' && '✗ Rejected'}
-                                            </span>
-                                        )}
+                                            )}
+                                            
+                                            {/* Status info for non-editable statuses */}
+                                            {!['DRAFT', 'SUBMITTED', 'REJECTED'].includes(sub.status) && !isAdmin && (
+                                                <span style={{ color: '#999', fontSize: '0.875rem' }}>
+                                                    {sub.status === 'COORDINATOR_APPROVED' && 'With Deputy Dean'}
+                                                    {sub.status === 'DEAN_ENDORSED' && '✓ Endorsed'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

@@ -9,6 +9,14 @@ function ReviewDashboard() {
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ type: '', message: '' });
     const [filter, setFilter] = useState('all');
+    const [rejectModal, setRejectModal] = useState({ open: false, submissionId: null, type: null });
+    const [rejectReason, setRejectReason] = useState('');
+    const [actionLoading, setActionLoading] = useState(false);
+
+    // Check if user can approve/endorse/reject
+    const canReview = user?.privileges?.includes('ADMIN') || 
+                      user?.privileges?.includes('COORDINATOR') || 
+                      user?.privileges?.includes('DEPUTY_DEAN');
 
     useEffect(() => {
         loadSubmissions();
@@ -26,6 +34,69 @@ function ReviewDashboard() {
         }
     };
 
+    const handleApprove = async (id) => {
+        if (!window.confirm('Approve this submission as Coordinator?')) return;
+        
+        setActionLoading(true);
+        try {
+            await reviewAPI.coordinatorApprove(id);
+            setAlert({ type: 'success', message: 'Submission approved successfully' });
+            loadSubmissions();
+        } catch (error) {
+            setAlert({ type: 'error', message: error.response?.data?.error || 'Error approving submission' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleEndorse = async (id) => {
+        if (!window.confirm('Endorse this submission as Deputy Dean?')) return;
+        
+        setActionLoading(true);
+        try {
+            await reviewAPI.deputyDeanEndorse(id);
+            setAlert({ type: 'success', message: 'Submission endorsed successfully' });
+            loadSubmissions();
+        } catch (error) {
+            setAlert({ type: 'error', message: error.response?.data?.error || 'Error endorsing submission' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const openRejectModal = (id, type) => {
+        setRejectModal({ open: true, submissionId: id, type });
+        setRejectReason('');
+    };
+
+    const closeRejectModal = () => {
+        setRejectModal({ open: false, submissionId: null, type: null });
+        setRejectReason('');
+    };
+
+    const handleReject = async () => {
+        if (!rejectReason.trim()) {
+            setAlert({ type: 'error', message: 'Please provide a rejection reason' });
+            return;
+        }
+
+        setActionLoading(true);
+        try {
+            if (rejectModal.type === 'coordinator') {
+                await reviewAPI.coordinatorReject(rejectModal.submissionId, rejectReason);
+            } else {
+                await reviewAPI.deputyDeanReject(rejectModal.submissionId, rejectReason);
+            }
+            setAlert({ type: 'success', message: 'Submission rejected' });
+            closeRejectModal();
+            loadSubmissions();
+        } catch (error) {
+            setAlert({ type: 'error', message: error.response?.data?.error || 'Error rejecting submission' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return '-';
         return new Date(dateString).toLocaleString('en-MY', {
@@ -35,11 +106,22 @@ function ReviewDashboard() {
         });
     };
 
+    const formatDateTime = (dateString) => {
+        if (!dateString) return '-';
+        return new Date(dateString).toLocaleString('en-MY', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
     const getStatusBadge = (status) => {
         const statusConfig = {
             'DRAFT': { class: 'draft', label: 'Draft' },
             'SUBMITTED': { class: 'submitted', label: 'Submitted' },
-            'COORDINATOR_APPROVED': { class: 'coordinator-approved', label: 'Coord. Approved' },
+            'COORDINATOR_APPROVED': { class: 'coordinator-approved', label: 'Approved' },
             'DEAN_ENDORSED': { class: 'dean-endorsed', label: 'Endorsed' },
             'REJECTED': { class: 'rejected', label: 'Rejected' }
         };
@@ -61,17 +143,6 @@ function ReviewDashboard() {
         REJECTED: submissions.filter(s => s.status === 'REJECTED').length
     };
 
-    // Document types to show in the table
-    const documentTypes = [
-        { key: 'FINAL_EXAM_QUESTION', label: 'Final Exam Q' },
-        { key: 'FINAL_EXAM_ANSWER', label: 'Final Exam A' },
-        { key: 'APPOINTMENT_LETTER', label: 'Appt. Letter' },
-        { key: 'TEACHING_SCHEDULE', label: 'Schedule' },
-        { key: 'COURSE_SYLLABUS', label: 'Syllabus' },
-        { key: 'SCHEME_OF_WORK', label: 'SOW' },
-        { key: 'MIDSEM_QUESTION', label: 'MidSem Q' },
-        { key: 'MIDSEM_ANSWER', label: 'MidSem A' }
-    ];
 
     if (loading) {
         return <div className="loading">Loading...</div>;
@@ -163,15 +234,14 @@ function ReviewDashboard() {
                                 <th>Dept</th>
                                 <th>Study Type</th>
                                 <th>Created</th>
-                                {documentTypes.map(dt => (
-                                    <th key={dt.key} style={{ fontSize: '0.75rem', textAlign: 'center' }}>{dt.label}</th>
-                                ))}
+                                <th>Updated</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredSubmissions.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7 + documentTypes.length} style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                                    <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
                                         No submissions found with the selected filter.
                                     </td>
                                 </tr>
@@ -199,16 +269,80 @@ function ReviewDashboard() {
                                                 {sub.study_type === 'Undergraduate' ? 'UG' : 'PG'}
                                             </span>
                                         </td>
-                                        <td style={{ whiteSpace: 'nowrap' }}>{formatDate(sub.created_at)}</td>
-                                        {documentTypes.map(dt => (
-                                            <td key={dt.key} style={{ textAlign: 'center' }}>
-                                                {sub.document_checks && sub.document_checks[dt.key] ? (
-                                                    <span style={{ color: '#10B981', fontWeight: 'bold' }}>✓</span>
-                                                ) : (
-                                                    <span style={{ color: '#D1D5DB' }}>-</span>
+                                        <td style={{ whiteSpace: 'nowrap', fontSize: '0.875rem' }}>{formatDateTime(sub.created_at)}</td>
+                                        <td style={{ whiteSpace: 'nowrap', fontSize: '0.875rem' }}>{formatDateTime(sub.updated_at)}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                                {/* Approve/Reject/Endorse buttons - only for reviewers (Admin, Coordinator, Deputy Dean) */}
+                                                {canReview && (
+                                                    <>
+                                                        {/* SUBMITTED: Can Approve or Reject */}
+                                                        {sub.status === 'SUBMITTED' && (
+                                                            <>
+                                                                <button
+                                                                    className="btn btn-success btn-small"
+                                                                    onClick={() => handleApprove(sub.id)}
+                                                                    disabled={actionLoading}
+                                                                    title="Approve"
+                                                                >
+                                                                    ✓ Approve
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-danger btn-small"
+                                                                    onClick={() => openRejectModal(sub.id, 'coordinator')}
+                                                                    disabled={actionLoading}
+                                                                    title="Reject"
+                                                                >
+                                                                    ✗ Reject
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        {/* COORDINATOR_APPROVED (Approved): Can Endorse or Reject */}
+                                                        {sub.status === 'COORDINATOR_APPROVED' && (
+                                                            <>
+                                                                <button
+                                                                    className="btn btn-primary btn-small"
+                                                                    onClick={() => handleEndorse(sub.id)}
+                                                                    disabled={actionLoading}
+                                                                    title="Endorse"
+                                                                >
+                                                                    ✓ Endorse
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-danger btn-small"
+                                                                    onClick={() => openRejectModal(sub.id, 'dean')}
+                                                                    disabled={actionLoading}
+                                                                    title="Reject"
+                                                                >
+                                                                    ✗ Reject
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </>
                                                 )}
-                                            </td>
-                                        ))}
+                                                
+                                                {/* Status indicators for non-actionable states */}
+                                                {sub.status === 'DEAN_ENDORSED' && (
+                                                    <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: '500' }}>✓ Endorsed</span>
+                                                )}
+                                                {sub.status === 'REJECTED' && (
+                                                    <span style={{ color: '#EF4444', fontSize: '0.75rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={sub.rejection_reason}>
+                                                        {sub.rejection_reason ? `Rejected: ${sub.rejection_reason}` : 'Rejected'}
+                                                    </span>
+                                                )}
+                                                {sub.status === 'DRAFT' && (
+                                                    <span style={{ color: '#9CA3AF', fontSize: '0.875rem' }}>Draft</span>
+                                                )}
+                                                
+                                                {/* For lecturers (non-reviewers), show status text */}
+                                                {!canReview && sub.status === 'SUBMITTED' && (
+                                                    <span style={{ color: '#F59E0B', fontSize: '0.875rem' }}>Pending Review</span>
+                                                )}
+                                                {!canReview && sub.status === 'COORDINATOR_APPROVED' && (
+                                                    <span style={{ color: '#8B5CF6', fontSize: '0.875rem' }}>Approved - Pending Endorsement</span>
+                                                )}
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -216,6 +350,75 @@ function ReviewDashboard() {
                     </table>
                 </div>
             </div>
+
+            {/* Rejection Modal */}
+            {rejectModal.open && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10000
+                    }}
+                    onClick={closeRejectModal}
+                >
+                    <div 
+                        style={{
+                            background: 'white',
+                            borderRadius: '8px',
+                            padding: '24px',
+                            width: '90%',
+                            maxWidth: '500px',
+                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ margin: '0 0 16px', color: '#1f2937' }}>
+                            Reject Submission
+                        </h3>
+                        <p style={{ color: '#666', marginBottom: '16px' }}>
+                            Please provide a reason for rejection. This will be visible to the lecturer.
+                        </p>
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Enter rejection reason..."
+                            style={{
+                                width: '100%',
+                                minHeight: '120px',
+                                padding: '12px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '14px',
+                                resize: 'vertical',
+                                marginBottom: '16px'
+                            }}
+                        />
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={closeRejectModal}
+                                disabled={actionLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn-danger"
+                                onClick={handleReject}
+                                disabled={actionLoading || !rejectReason.trim()}
+                            >
+                                {actionLoading ? 'Rejecting...' : 'Reject Submission'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -152,7 +152,7 @@ export const createSubmission = async (req, res) => {
     }
 };
 
-// Update submission (only if DRAFT)
+// Update submission
 export const updateSubmission = async (req, res) => {
     try {
         const { id } = req.params;
@@ -163,25 +163,42 @@ export const updateSubmission = async (req, res) => {
             type_of_study
         } = req.body;
 
-        // Check if submission exists and is owned by user
-        const [submissions] = await pool.query(
-            'SELECT * FROM submissions WHERE id = ? AND lecturer_user_id = ?',
-            [id, req.user.id]
-        );
+        const isAdmin = req.user.privileges && req.user.privileges.includes('ADMIN');
+
+        // Check if submission exists
+        let query = 'SELECT * FROM submissions WHERE id = ?';
+        let params = [id];
+
+        // If not admin, check ownership
+        if (!isAdmin) {
+            query += ' AND lecturer_user_id = ?';
+            params.push(req.user.id);
+        }
+
+        const [submissions] = await pool.query(query, params);
 
         if (submissions.length === 0) {
             return res.status(404).json({ error: 'Submission not found.' });
         }
 
-        if (submissions[0].status !== 'DRAFT') {
-            return res.status(400).json({ error: 'Only draft submissions can be updated.' });
+        const submission = submissions[0];
+
+        // Admin can edit any submission
+        // Regular users can edit DRAFT, REJECTED, or SUBMITTED submissions
+        const editableStatuses = ['DRAFT', 'REJECTED', 'SUBMITTED'];
+        if (!isAdmin && !editableStatuses.includes(submission.status)) {
+            return res.status(400).json({ error: 'This submission cannot be updated at its current status.' });
         }
+
+        // If updating a rejected submission and not admin, reset to DRAFT
+        // Keep SUBMITTED status as-is when editing files
+        const newStatus = (!isAdmin && submission.status === 'REJECTED') ? 'DRAFT' : submission.status;
 
         await pool.query(`
             UPDATE submissions 
-            SET session_id = ?, department_id = ?, course_id = ?, type_of_study = ?
+            SET session_id = ?, department_id = ?, course_id = ?, type_of_study = ?, status = ?
             WHERE id = ?
-        `, [session_id, department_id, course_id, type_of_study, id]);
+        `, [session_id, department_id, course_id, type_of_study, newStatus, id]);
 
         // Log audit
         await pool.query(
@@ -218,17 +235,16 @@ export const submitForReview = async (req, res) => {
             return res.status(400).json({ error: 'Only draft submissions can be submitted.' });
         }
 
-        // Get course coordinator
+        // Get course coordinator (if available)
         const [mappings] = await pool.query(
             'SELECT coordinator_user_id FROM course_role_map WHERE course_id = ? AND active = TRUE',
             [submissions[0].course_id]
         );
 
-        if (mappings.length === 0 || !mappings[0].coordinator_user_id) {
-            return res.status(400).json({ error: 'No coordinator assigned to this course. Please contact admin.' });
-        }
-
-        const coordinatorId = mappings[0].coordinator_user_id;
+        // Use coordinator if available, otherwise set to NULL (admin can handle)
+        const coordinatorId = mappings.length > 0 && mappings[0].coordinator_user_id 
+            ? mappings[0].coordinator_user_id 
+            : null;
 
         await pool.query(`
             UPDATE submissions 
@@ -303,19 +319,29 @@ export const uploadDocument = async (req, res) => {
     try {
         const { id } = req.params;
         const { documentType, notApplicable } = req.body;
+        const isAdmin = req.user.privileges && req.user.privileges.includes('ADMIN');
 
-        // Check if submission exists and is owned by user
-        const [submissions] = await pool.query(
-            'SELECT * FROM submissions WHERE id = ? AND lecturer_user_id = ?',
-            [id, req.user.id]
-        );
+        // Check if submission exists
+        let query = 'SELECT * FROM submissions WHERE id = ?';
+        let params = [id];
+
+        // If not admin, check ownership
+        if (!isAdmin) {
+            query += ' AND lecturer_user_id = ?';
+            params.push(req.user.id);
+        }
+
+        const [submissions] = await pool.query(query, params);
 
         if (submissions.length === 0) {
             return res.status(404).json({ error: 'Submission not found.' });
         }
 
-        if (submissions[0].status !== 'DRAFT') {
-            return res.status(400).json({ error: 'Only draft submissions can be modified.' });
+        // Allow editing for DRAFT, REJECTED, and SUBMITTED status
+        // Admin can edit any status
+        const editableStatuses = ['DRAFT', 'REJECTED', 'SUBMITTED'];
+        if (!isAdmin && !editableStatuses.includes(submissions[0].status)) {
+            return res.status(400).json({ error: 'This submission cannot be modified at its current status.' });
         }
 
         // If not applicable, just store that flag
@@ -363,19 +389,29 @@ export const uploadDocument = async (req, res) => {
 export const deleteDocument = async (req, res) => {
     try {
         const { id, docId } = req.params;
+        const isAdmin = req.user.privileges && req.user.privileges.includes('ADMIN');
 
-        // Check if submission exists and is owned by user
-        const [submissions] = await pool.query(
-            'SELECT * FROM submissions WHERE id = ? AND lecturer_user_id = ?',
-            [id, req.user.id]
-        );
+        // Check if submission exists
+        let query = 'SELECT * FROM submissions WHERE id = ?';
+        let params = [id];
+
+        // If not admin, check ownership
+        if (!isAdmin) {
+            query += ' AND lecturer_user_id = ?';
+            params.push(req.user.id);
+        }
+
+        const [submissions] = await pool.query(query, params);
 
         if (submissions.length === 0) {
             return res.status(404).json({ error: 'Submission not found.' });
         }
 
-        if (submissions[0].status !== 'DRAFT') {
-            return res.status(400).json({ error: 'Only draft submissions can be modified.' });
+        // Admin can delete documents from any submission
+        // Regular users can delete from DRAFT, REJECTED, or SUBMITTED submissions
+        const editableStatuses = ['DRAFT', 'REJECTED', 'SUBMITTED'];
+        if (!isAdmin && !editableStatuses.includes(submissions[0].status)) {
+            return res.status(400).json({ error: 'This submission cannot be modified at its current status.' });
         }
 
         // Get document info
@@ -395,6 +431,12 @@ export const deleteDocument = async (req, res) => {
 
         // Delete from database
         await pool.query('DELETE FROM submission_documents WHERE id = ?', [docId]);
+
+        // Log audit
+        await pool.query(
+            'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+            [req.user.id, 'DOCUMENT_DELETED', 'document', docId, JSON.stringify({ submission_id: id, document_type: documents[0].document_type })]
+        );
 
         res.json({
             success: true,
@@ -445,7 +487,27 @@ export const downloadDocument = async (req, res) => {
             return res.status(404).json({ error: 'File not found on server.' });
         }
 
-        res.download(document.file_path, document.file_name);
+        const fileName = document.file_name || path.basename(document.file_path);
+        const fileExt = path.extname(fileName).toLowerCase();
+        const filePath = path.resolve(document.file_path);
+        
+        // Set headers for PDF viewing in browser (inline) or download (attachment)
+        if (fileExt === '.pdf') {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
+        } else {
+            res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+        }
+        
+        // Use sendFile for better control
+        res.sendFile(filePath, (err) => {
+            if (err) {
+                console.error('Error sending file:', err);
+                if (!res.headersSent) {
+                    res.status(500).json({ error: 'Error serving file.' });
+                }
+            }
+        });
     } catch (error) {
         console.error('Download document error:', error);
         res.status(500).json({ error: 'Server error downloading document.' });

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { submissionAPI, publicAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -7,12 +8,18 @@ import Alert from '../components/common/Alert';
 function SubmitDocument() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
+    const isEditMode = !!editId;
+
     const [sessions, setSessions] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [courses, setCourses] = useState([]);
     const [filteredCourses, setFilteredCourses] = useState([]);
     const [alert, setAlert] = useState({ type: '', message: '' });
     const [loading, setLoading] = useState(false);
+    const [existingDocuments, setExistingDocuments] = useState({});
+    const [pdfModal, setPdfModal] = useState({ open: false, url: '', fileName: '' });
 
     const [formData, setFormData] = useState({
         session_id: '',
@@ -47,7 +54,10 @@ function SubmitDocument() {
 
     useEffect(() => {
         loadData();
-    }, []);
+        if (isEditMode) {
+            loadSubmissionData();
+        }
+    }, [isEditMode, editId]);
 
     useEffect(() => {
         if (formData.department_id) {
@@ -75,6 +85,46 @@ function SubmitDocument() {
         }
     };
 
+    const loadSubmissionData = async () => {
+        try {
+            const response = await submissionAPI.getSubmission(editId);
+            const submission = response.data.submission;
+
+            // Pre-populate form data
+            setFormData({
+                session_id: submission.session_id,
+                department_id: submission.department_id,
+                course_id: submission.course_id,
+                type_of_study: submission.type_of_study
+            });
+
+            // Load existing documents
+            const docs = {};
+            const na = {};
+            if (submission.documents) {
+                submission.documents.forEach(doc => {
+                    if (doc.file_path) {
+                        // Use file_name if available, otherwise extract from path
+                        const fileName = doc.file_name || doc.file_path.split('/').pop();
+                        docs[doc.document_type] = { 
+                            name: fileName, 
+                            uploaded: true,
+                            docId: doc.id,
+                            filePath: doc.file_path
+                        };
+                    }
+                    na[doc.document_type] = doc.not_applicable || false;
+                });
+            }
+            setExistingDocuments(docs);
+            setNotApplicable(na);
+
+        } catch (error) {
+            console.error('Error loading submission:', error);
+            setAlert({ type: 'error', message: 'Error loading submission data' });
+        }
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -99,6 +149,52 @@ function SubmitDocument() {
         }
     };
 
+    const handleViewPdf = async (docId, fileName) => {
+        try {
+            // Fetch PDF with authentication using the API service
+            const response = await submissionAPI.downloadDocument(docId);
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const blobUrl = URL.createObjectURL(blob);
+            
+            setPdfModal({
+                open: true,
+                url: blobUrl,
+                fileName: fileName
+            });
+        } catch (error) {
+            console.error('Error loading PDF:', error);
+            setAlert({ type: 'error', message: 'Error loading PDF document' });
+        }
+    };
+
+    const closePdfModal = () => {
+        // Clean up blob URL to prevent memory leaks
+        if (pdfModal.url && pdfModal.url.startsWith('blob:')) {
+            URL.revokeObjectURL(pdfModal.url);
+        }
+        setPdfModal({ open: false, url: '', fileName: '' });
+    };
+
+    const handleRemoveFile = async (docType, docId) => {
+        if (!window.confirm('Are you sure you want to remove this file?')) return;
+
+        try {
+            await submissionAPI.deleteDocument(editId, docId);
+            
+            // Remove from existingDocuments state
+            setExistingDocuments(prev => {
+                const updated = { ...prev };
+                delete updated[docType];
+                return updated;
+            });
+            
+            setAlert({ type: 'success', message: 'File removed successfully' });
+        } catch (error) {
+            console.error('Error removing file:', error);
+            setAlert({ type: 'error', message: error.response?.data?.error || 'Error removing file' });
+        }
+    };
+
     const handleSubmit = async (asDraft = true) => {
         setLoading(true);
         setAlert({ type: '', message: '' });
@@ -111,9 +207,17 @@ function SubmitDocument() {
                 return;
             }
 
-            // Step 1: Create submission
-            const response = await submissionAPI.createSubmission(formData);
-            const submissionId = response.data.submissionId;
+            let submissionId;
+            
+            if (isEditMode) {
+                // Step 1: Update existing submission
+                await submissionAPI.updateSubmission(editId, formData);
+                submissionId = editId;
+            } else {
+                // Step 1: Create new submission
+                const response = await submissionAPI.createSubmission(formData);
+                submissionId = response.data.submissionId;
+            }
 
             // Step 2: Upload files
             for (const [docType, file] of Object.entries(files)) {
@@ -138,9 +242,9 @@ function SubmitDocument() {
             // Step 4: Submit for review if not draft
             if (!asDraft) {
                 await submissionAPI.submitForReview(submissionId);
-                setAlert({ type: 'success', message: 'Document submitted for review successfully!' });
+                setAlert({ type: 'success', message: isEditMode ? 'Document updated and submitted for review successfully!' : 'Document submitted for review successfully!' });
             } else {
-                setAlert({ type: 'success', message: 'Document saved as draft successfully!' });
+                setAlert({ type: 'success', message: isEditMode ? 'Document updated successfully!' : 'Document saved as draft successfully!' });
             }
 
             // Redirect after delay
@@ -162,7 +266,7 @@ function SubmitDocument() {
     return (
         <div className="card">
             <div className="form-header">
-                <h3>QP Repository Information Form</h3>
+                <h3>{isEditMode ? 'Edit Submission' : 'QP Repository Information Form'}</h3>
             </div>
 
             {alert.message && <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />}
@@ -226,9 +330,55 @@ function SubmitDocument() {
                                 onChange={(e) => handleFileChange(doc.key, e)}
                                 accept=".pdf,.doc,.docx,.xls,.xlsx"
                             />
-                            <label htmlFor={doc.key} className="file-upload-btn">
-                                {files[doc.key] ? files[doc.key].name : 'Click here to attach a file'}
-                            </label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                                <label htmlFor={doc.key} className="file-upload-btn">
+                                    {files[doc.key] 
+                                        ? files[doc.key].name 
+                                        : existingDocuments[doc.key]?.uploaded
+                                            ? `✓ ${existingDocuments[doc.key].name}`
+                                            : 'Click here to attach a file'}
+                                </label>
+                                {existingDocuments[doc.key]?.uploaded && (
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleViewPdf(existingDocuments[doc.key].docId, existingDocuments[doc.key].name)}
+                                            style={{ 
+                                                fontSize: '0.875rem', 
+                                                color: '#3B82F6', 
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: 0,
+                                                textAlign: 'left',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            👁️ View PDF
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveFile(doc.key, existingDocuments[doc.key].docId)}
+                                            style={{ 
+                                                fontSize: '0.875rem', 
+                                                color: '#EF4444', 
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: 0,
+                                                textAlign: 'left',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            🗑️ Remove
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -247,9 +397,55 @@ function SubmitDocument() {
                                 accept=".pdf,.doc,.docx,.xls,.xlsx"
                                 disabled={notApplicable[doc.key]}
                             />
-                            <label htmlFor={doc.key} className="file-upload-btn">
-                                {files[doc.key] ? files[doc.key].name : 'Click here to attach a file'}
-                            </label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                                <label htmlFor={doc.key} className="file-upload-btn">
+                                    {files[doc.key] 
+                                        ? files[doc.key].name 
+                                        : existingDocuments[doc.key]?.uploaded
+                                            ? `✓ ${existingDocuments[doc.key].name}`
+                                            : 'Click here to attach a file'}
+                                </label>
+                                {existingDocuments[doc.key]?.uploaded && (
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleViewPdf(existingDocuments[doc.key].docId, existingDocuments[doc.key].name)}
+                                            style={{ 
+                                                fontSize: '0.875rem', 
+                                                color: '#3B82F6', 
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: 0,
+                                                textAlign: 'left',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            👁️ View PDF
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveFile(doc.key, existingDocuments[doc.key].docId)}
+                                            style={{ 
+                                                fontSize: '0.875rem', 
+                                                color: '#EF4444', 
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: 0,
+                                                textAlign: 'left',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            🗑️ Remove
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             {!doc.required && (
                                 <div className="checkbox-na">
                                     <input 
@@ -278,9 +474,97 @@ function SubmitDocument() {
                     onClick={() => handleSubmit(false)}
                     disabled={loading}
                 >
-                    {loading ? 'Submitting...' : 'Submit for Review'}
+                    {loading ? 'Submitting...' : isEditMode ? 'Update and Submit for Review' : 'Submit for Review'}
                 </button>
             </div>
+
+            {/* PDF Viewer Modal */}
+            {pdfModal.open && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.75)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10000,
+                        padding: '20px'
+                    }}
+                    onClick={closePdfModal}
+                >
+                    <div 
+                        style={{
+                            background: 'white',
+                            borderRadius: '8px',
+                            width: '90%',
+                            maxWidth: '1200px',
+                            height: '90vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div style={{
+                            padding: '16px 20px',
+                            borderBottom: '1px solid #e5e7eb',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: '1.125rem', color: '#1f2937' }}>
+                                {pdfModal.fileName}
+                            </h3>
+                            <button
+                                onClick={closePdfModal}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    fontSize: '24px',
+                                    cursor: 'pointer',
+                                    color: '#6b7280',
+                                    padding: '0',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '4px'
+                                }}
+                                onMouseOver={(e) => e.target.style.background = '#f3f4f6'}
+                                onMouseOut={(e) => e.target.style.background = 'none'}
+                            >
+                                ×
+                            </button>
+                        </div>
+                        
+                        {/* PDF Viewer */}
+                        <div style={{
+                            flex: 1,
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#f3f4f6'
+                        }}>
+                            <iframe
+                                src={pdfModal.url}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none'
+                                }}
+                                title="PDF Viewer"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

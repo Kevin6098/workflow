@@ -71,21 +71,30 @@ export const coordinatorApprove = async (req, res) => {
             return res.status(400).json({ error: 'Only submitted submissions can be approved.' });
         }
 
-        // Check if current user is coordinator for this course
-        const [mappings] = await pool.query(
-            'SELECT * FROM course_role_map WHERE course_id = ? AND coordinator_user_id = ? AND active = TRUE',
-            [submission.course_id, req.user.id]
-        );
+        const isAdmin = req.user.privileges && req.user.privileges.includes('ADMIN');
 
-        if (mappings.length === 0) {
-            return res.status(403).json({ error: 'You are not the coordinator for this course.' });
-        }
+        // Admin can approve any submission, otherwise check if user is coordinator
+        let deputyDeanId = null;
+        if (!isAdmin) {
+            const [mappings] = await pool.query(
+                'SELECT * FROM course_role_map WHERE course_id = ? AND coordinator_user_id = ? AND active = TRUE',
+                [submission.course_id, req.user.id]
+            );
 
-        // Get deputy dean
-        const deputyDeanId = mappings[0].deputy_dean_user_id;
+            if (mappings.length === 0) {
+                return res.status(403).json({ error: 'You are not the coordinator for this course.' });
+            }
 
-        if (!deputyDeanId) {
-            return res.status(400).json({ error: 'No deputy dean assigned to this course. Please contact admin.' });
+            deputyDeanId = mappings[0].deputy_dean_user_id;
+        } else {
+            // Admin: try to get deputy dean, but don't require it
+            const [mappings] = await pool.query(
+                'SELECT deputy_dean_user_id FROM course_role_map WHERE course_id = ? AND active = TRUE',
+                [submission.course_id]
+            );
+            deputyDeanId = mappings.length > 0 && mappings[0].deputy_dean_user_id 
+                ? mappings[0].deputy_dean_user_id 
+                : null;
         }
 
         // Update submission status
@@ -139,14 +148,18 @@ export const coordinatorReject = async (req, res) => {
             return res.status(400).json({ error: 'Only submitted submissions can be rejected.' });
         }
 
-        // Check if current user is coordinator for this course
-        const [mappings] = await pool.query(
-            'SELECT * FROM course_role_map WHERE course_id = ? AND coordinator_user_id = ? AND active = TRUE',
-            [submission.course_id, req.user.id]
-        );
+        const isAdmin = req.user.privileges && req.user.privileges.includes('ADMIN');
 
-        if (mappings.length === 0) {
-            return res.status(403).json({ error: 'You are not the coordinator for this course.' });
+        // Admin can reject any submission, otherwise check if user is coordinator
+        if (!isAdmin) {
+            const [mappings] = await pool.query(
+                'SELECT * FROM course_role_map WHERE course_id = ? AND coordinator_user_id = ? AND active = TRUE',
+                [submission.course_id, req.user.id]
+            );
+
+            if (mappings.length === 0) {
+                return res.status(403).json({ error: 'You are not the coordinator for this course.' });
+            }
         }
 
         // Update submission status
@@ -249,14 +262,18 @@ export const deputyDeanEndorse = async (req, res) => {
             return res.status(400).json({ error: 'Only coordinator-approved submissions can be endorsed.' });
         }
 
-        // Check if current user is deputy dean for this course
-        const [mappings] = await pool.query(
-            'SELECT * FROM course_role_map WHERE course_id = ? AND deputy_dean_user_id = ? AND active = TRUE',
-            [submission.course_id, req.user.id]
-        );
+        const isAdmin = req.user.privileges && req.user.privileges.includes('ADMIN');
 
-        if (mappings.length === 0) {
-            return res.status(403).json({ error: 'You are not the deputy dean for this course.' });
+        // Admin can endorse any submission, otherwise check if user is deputy dean
+        if (!isAdmin) {
+            const [mappings] = await pool.query(
+                'SELECT * FROM course_role_map WHERE course_id = ? AND deputy_dean_user_id = ? AND active = TRUE',
+                [submission.course_id, req.user.id]
+            );
+
+            if (mappings.length === 0) {
+                return res.status(403).json({ error: 'You are not the deputy dean for this course.' });
+            }
         }
 
         // Update submission status
@@ -310,14 +327,18 @@ export const deputyDeanReject = async (req, res) => {
             return res.status(400).json({ error: 'Only coordinator-approved submissions can be rejected.' });
         }
 
-        // Check if current user is deputy dean for this course
-        const [mappings] = await pool.query(
-            'SELECT * FROM course_role_map WHERE course_id = ? AND deputy_dean_user_id = ? AND active = TRUE',
-            [submission.course_id, req.user.id]
-        );
+        const isAdmin = req.user.privileges && req.user.privileges.includes('ADMIN');
 
-        if (mappings.length === 0) {
-            return res.status(403).json({ error: 'You are not the deputy dean for this course.' });
+        // Admin can reject any submission, otherwise check if user is deputy dean
+        if (!isAdmin) {
+            const [mappings] = await pool.query(
+                'SELECT * FROM course_role_map WHERE course_id = ? AND deputy_dean_user_id = ? AND active = TRUE',
+                [submission.course_id, req.user.id]
+            );
+
+            if (mappings.length === 0) {
+                return res.status(403).json({ error: 'You are not the deputy dean for this course.' });
+            }
         }
 
         // Update submission status
