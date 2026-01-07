@@ -162,10 +162,10 @@ export const coordinatorReject = async (req, res) => {
             }
         }
 
-        // Update submission status
+        // Update submission status - reset to DRAFT so lecturer can edit and resubmit
         await pool.query(`
             UPDATE submissions 
-            SET status = 'REJECTED', 
+            SET status = 'DRAFT', 
                 current_assignee_id = NULL,
                 rejected_at = NOW(),
                 rejection_reason = ?
@@ -180,7 +180,7 @@ export const coordinatorReject = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Submission rejected.'
+            message: 'Submission rejected and returned to draft.'
         });
     } catch (error) {
         console.error('Coordinator reject error:', error);
@@ -323,8 +323,9 @@ export const deputyDeanReject = async (req, res) => {
 
         const submission = submissions[0];
 
-        if (submission.status !== 'COORDINATOR_APPROVED') {
-            return res.status(400).json({ error: 'Only coordinator-approved submissions can be rejected.' });
+        // Can reject COORDINATOR_APPROVED or DEAN_ENDORSED submissions
+        if (submission.status !== 'COORDINATOR_APPROVED' && submission.status !== 'DEAN_ENDORSED') {
+            return res.status(400).json({ error: 'Only approved or endorsed submissions can be rejected.' });
         }
 
         const isAdmin = req.user.privileges && req.user.privileges.includes('ADMIN');
@@ -341,10 +342,12 @@ export const deputyDeanReject = async (req, res) => {
             }
         }
 
-        // Update submission status
+        const previousStatus = submission.status;
+
+        // Update submission status - reset to DRAFT so lecturer can edit and resubmit
         await pool.query(`
             UPDATE submissions 
-            SET status = 'REJECTED', 
+            SET status = 'DRAFT', 
                 current_assignee_id = NULL,
                 rejected_at = NOW(),
                 rejection_reason = ?
@@ -354,12 +357,12 @@ export const deputyDeanReject = async (req, res) => {
         // Log audit
         await pool.query(
             'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, 'DEPUTY_DEAN_REJECTED', 'submission', id, JSON.stringify({ reason })]
+            [req.user.id, 'DEPUTY_DEAN_REJECTED', 'submission', id, JSON.stringify({ reason, previous_status: previousStatus })]
         );
 
         res.json({
             success: true,
-            message: 'Submission rejected.'
+            message: 'Submission rejected and returned to draft.'
         });
     } catch (error) {
         console.error('Deputy dean reject error:', error);

@@ -139,8 +139,7 @@ function ReviewDashboard() {
         all: submissions.length,
         SUBMITTED: submissions.filter(s => s.status === 'SUBMITTED').length,
         COORDINATOR_APPROVED: submissions.filter(s => s.status === 'COORDINATOR_APPROVED').length,
-        DEAN_ENDORSED: submissions.filter(s => s.status === 'DEAN_ENDORSED').length,
-        REJECTED: submissions.filter(s => s.status === 'REJECTED').length
+        DEAN_ENDORSED: submissions.filter(s => s.status === 'DEAN_ENDORSED').length
     };
 
 
@@ -206,18 +205,6 @@ function ReviewDashboard() {
                 >
                     <h3 style={{ margin: 0, fontSize: '2rem', color: '#10B981' }}>{statusCounts.DEAN_ENDORSED}</h3>
                     <p style={{ margin: '8px 0 0', color: '#666' }}>Endorsed</p>
-                </div>
-                <div 
-                    className="card" 
-                    style={{ 
-                        cursor: 'pointer', 
-                        textAlign: 'center',
-                        border: filter === 'REJECTED' ? '2px solid #EF4444' : '1px solid #e5e7eb'
-                    }}
-                    onClick={() => setFilter('REJECTED')}
-                >
-                    <h3 style={{ margin: 0, fontSize: '2rem', color: '#EF4444' }}>{statusCounts.REJECTED}</h3>
-                    <p style={{ margin: '8px 0 0', color: '#666' }}>Rejected</p>
                 </div>
             </div>
 
@@ -321,17 +308,33 @@ function ReviewDashboard() {
                                                     </>
                                                 )}
                                                 
-                                                {/* Status indicators for non-actionable states */}
+                                                {/* DEAN_ENDORSED: Show Endorsed status + Reject button for reviewers */}
                                                 {sub.status === 'DEAN_ENDORSED' && (
-                                                    <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: '500' }}>✓ Endorsed</span>
+                                                    <>
+                                                        <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: '500' }}>✓ Endorsed</span>
+                                                        {canReview && (
+                                                            <button
+                                                                className="btn btn-danger btn-small"
+                                                                onClick={() => openRejectModal(sub.id, 'dean')}
+                                                                disabled={actionLoading}
+                                                                title="Reject and return to draft"
+                                                            >
+                                                                ✗ Reject
+                                                            </button>
+                                                        )}
+                                                    </>
                                                 )}
-                                                {sub.status === 'REJECTED' && (
-                                                    <span style={{ color: '#EF4444', fontSize: '0.75rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={sub.rejection_reason}>
-                                                        {sub.rejection_reason ? `Rejected: ${sub.rejection_reason}` : 'Rejected'}
-                                                    </span>
-                                                )}
+                                                
+                                                {/* DRAFT: Show draft status and rejection reason if any */}
                                                 {sub.status === 'DRAFT' && (
-                                                    <span style={{ color: '#9CA3AF', fontSize: '0.875rem' }}>Draft</span>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        <span style={{ color: '#9CA3AF', fontSize: '0.875rem' }}>Draft</span>
+                                                        {sub.rejection_reason && (
+                                                            <span style={{ color: '#EF4444', fontSize: '0.75rem' }} title={sub.rejection_reason}>
+                                                                Last rejected: {sub.rejection_reason.length > 30 ? sub.rejection_reason.substring(0, 30) + '...' : sub.rejection_reason}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 )}
                                                 
                                                 {/* For lecturers (non-reviewers), show status text */}
