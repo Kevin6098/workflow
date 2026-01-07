@@ -50,7 +50,7 @@ sudo mysql
 CREATE DATABASE workflow_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Create user (replace 'your_password' with a strong password)
-CREATE USER 'workflow_user'@'localhost' IDENTIFIED BY 'your_password';
+CREATE USER 'workflow_user'@'localhost' IDENTIFIED BY '920214_Ang';
 
 -- Grant privileges
 GRANT ALL PRIVILEGES ON workflow_system.* TO 'workflow_user'@'localhost';
@@ -69,16 +69,16 @@ mysql -u workflow_user -p workflow_system < schema.sql
 
 ### Clone/Copy Project Files
 ```bash
-# Navigate to web directory
-cd /var/www
+# Navigate to projects directory
+cd /projects
 
 # Clone your repository (or upload files)
 sudo git clone <your-repo-url> workflow
 # OR use SCP/SFTP to upload files
 
 # Set ownership
-sudo chown -R $USER:$USER /var/www/workflow
-cd /var/www/workflow
+sudo chown -R $USER:$USER /projects/workflow
+cd /projects/workflow
 ```
 
 ### Install Dependencies
@@ -99,7 +99,7 @@ npm install
 
 ### Backend Configuration
 ```bash
-cd /var/www/workflow/backend
+cd /projects/workflow/backend
 nano .env
 ```
 
@@ -136,7 +136,7 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 ### Frontend Configuration
 ```bash
-cd /var/www/workflow/frontend
+cd /projects/workflow/frontend
 nano .env.production
 ```
 
@@ -148,7 +148,7 @@ VITE_API_URL=https://workflow.taskinsight.my/api
 ## 🏗️ Step 6: Build Frontend
 
 ```bash
-cd /var/www/workflow/frontend
+cd /projects/workflow/frontend
 npm run build
 ```
 
@@ -161,7 +161,7 @@ This creates a `dist` folder with production-ready files.
 sudo npm install -g pm2
 
 # Create PM2 ecosystem file
-cd /var/www/workflow
+cd /projects/workflow
 nano ecosystem.config.js
 ```
 
@@ -172,7 +172,7 @@ module.exports = {
     {
       name: 'workflow-backend',
       script: './backend/server.js',
-      cwd: '/var/www/workflow',
+      cwd: '/projects/workflow',
       instances: 1,
       exec_mode: 'fork',
       env: {
@@ -190,7 +190,7 @@ module.exports = {
       name: 'workflow-frontend',
       script: 'npx',
       args: 'serve -s dist -l 3005',
-      cwd: '/var/www/workflow/frontend',
+      cwd: '/projects/workflow/frontend',
       instances: 1,
       exec_mode: 'fork',
       env: {
@@ -209,14 +209,14 @@ module.exports = {
 
 ```bash
 # Create logs directory
-mkdir -p /var/www/workflow/logs
+mkdir -p /projects/workflow/logs
 
 # Install serve for frontend
-cd /var/www/workflow/frontend
+cd /projects/workflow/frontend
 npm install -g serve
 
 # Start applications with PM2
-cd /var/www/workflow
+cd /projects/workflow
 pm2 start ecosystem.config.js
 
 # Save PM2 configuration
@@ -376,11 +376,11 @@ Certbot will automatically update your Nginx configuration with SSL certificates
 
 ```bash
 # Create uploads directory
-mkdir -p /var/www/workflow/backend/uploads
+mkdir -p /projects/workflow/backend/uploads
 
 # Set permissions
-chmod 755 /var/www/workflow/backend/uploads
-chown -R $USER:$USER /var/www/workflow/backend/uploads
+chmod 755 /projects/workflow/backend/uploads
+chown -R $USER:$USER /projects/workflow/backend/uploads
 ```
 
 ## 🔥 Step 11: Configure Firewall
@@ -441,7 +441,7 @@ pm2 link <secret_key> <public_key>
 
 ### Update Application
 ```bash
-cd /var/www/workflow
+cd /projects/workflow
 git pull origin main  # Or your branch name
 cd backend && npm install
 cd ../frontend && npm install && npm run build
@@ -458,19 +458,19 @@ sudo tail -f /var/log/nginx/workflow-access.log
 sudo tail -f /var/log/nginx/workflow-error.log
 
 # Application logs
-tail -f /var/www/workflow/logs/backend-error.log
-tail -f /var/www/workflow/logs/frontend-error.log
+tail -f /projects/workflow/logs/backend-error.log
+tail -f /projects/workflow/logs/frontend-error.log
 ```
 
 ### Database Backup
 ```bash
 # Create backup script
-nano /var/www/workflow/backup-db.sh
+nano /projects/workflow/backup-db.sh
 ```
 
 ```bash
 #!/bin/bash
-BACKUP_DIR="/var/www/workflow/backups"
+BACKUP_DIR="/projects/workflow/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
 
@@ -482,11 +482,11 @@ find $BACKUP_DIR -name "workflow_*.sql.gz" -mtime +7 -delete
 ```
 
 ```bash
-chmod +x /var/www/workflow/backup-db.sh
+chmod +x /projects/workflow/backup-db.sh
 
 # Add to crontab (daily at 2 AM)
 crontab -e
-# Add: 0 2 * * * /var/www/workflow/backup-db.sh
+# Add: 0 2 * * * /projects/workflow/backup-db.sh
 ```
 
 ## 🐛 Troubleshooting
@@ -501,7 +501,7 @@ pm2 restart workflow-backend
 ```bash
 pm2 logs workflow-frontend
 # Check if dist folder exists
-ls -la /var/www/workflow/frontend/dist
+ls -la /projects/workflow/frontend/dist
 ```
 
 ### Nginx errors
@@ -518,8 +518,8 @@ mysql -u workflow_user -p workflow_system
 
 ### Permission issues
 ```bash
-sudo chown -R $USER:$USER /var/www/workflow
-chmod -R 755 /var/www/workflow
+sudo chown -R $USER:$USER /projects/workflow
+chmod -R 755 /projects/workflow
 ```
 
 ## 📊 Performance Optimization

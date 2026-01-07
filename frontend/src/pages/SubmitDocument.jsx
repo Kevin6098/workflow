@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { submissionAPI, adminAPI } from '../services/api';
+import { submissionAPI, publicAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Alert from '../components/common/Alert';
@@ -61,9 +61,9 @@ function SubmitDocument() {
     const loadData = async () => {
         try {
             const [sessionsRes, deptsRes, coursesRes] = await Promise.all([
-                adminAPI.getSessions(),
-                adminAPI.getDepartments(),
-                adminAPI.getCourses()
+                publicAPI.getSessions(),
+                publicAPI.getDepartments(),
+                publicAPI.getCourses()
             ]);
 
             setSessions(sessionsRes.data.sessions.filter(s => s.active));

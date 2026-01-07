@@ -72,6 +72,13 @@ export const reviewAPI = {
     getAllSubmissions: () => api.get('/reviews/dashboard/submissions')
 };
 
+// Public APIs (for authenticated users - read-only access)
+export const publicAPI = {
+    getSessions: () => api.get('/public/sessions'),
+    getDepartments: () => api.get('/public/departments'),
+    getCourses: () => api.get('/public/courses')
+};
+
 // Admin APIs
 export const adminAPI = {
     // Users

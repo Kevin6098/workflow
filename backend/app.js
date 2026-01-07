@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.js';
 import submissionRoutes from './routes/submissions.js';
 import reviewRoutes from './routes/reviews.js';
 import adminRoutes from './routes/admin.js';
+import publicRoutes from './routes/public.js';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/public', publicRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

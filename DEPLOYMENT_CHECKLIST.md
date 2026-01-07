@@ -19,7 +19,7 @@ Quick checklist for deploying to VPS at `workflow.taskinsight.my`
 
 ## 📦 Application Setup
 
-- [ ] Project files uploaded to `/var/www/workflow`
+- [ ] Project files uploaded to `/projects/workflow`
 - [ ] Backend dependencies installed (`cd backend && npm install`)
 - [ ] Frontend dependencies installed (`cd frontend && npm install`)
 - [ ] Frontend built (`cd frontend && npm run build`)
@@ -66,9 +66,9 @@ Quick checklist for deploying to VPS at `workflow.taskinsight.my`
 
 ## 📁 File Permissions
 
-- [ ] Uploads directory created: `/var/www/workflow/backend/uploads`
-- [ ] Logs directory created: `/var/www/workflow/logs`
-- [ ] Proper ownership set: `chown -R $USER:$USER /var/www/workflow`
+- [ ] Uploads directory created: `/projects/workflow/backend/uploads`
+- [ ] Logs directory created: `/projects/workflow/logs`
+- [ ] Proper ownership set: `chown -R $USER:$USER /projects/workflow`
 
 ## ✅ Testing
 
@@ -85,11 +85,11 @@ Quick checklist for deploying to VPS at `workflow.taskinsight.my`
 - [ ] PM2 status checked: `pm2 status`
 - [ ] PM2 logs reviewed: `pm2 logs`
 - [ ] Nginx logs checked: `sudo tail -f /var/log/nginx/workflow-error.log`
-- [ ] Application logs checked: `tail -f /var/www/workflow/logs/*.log`
+- [ ] Application logs checked: `tail -f /projects/workflow/logs/*.log`
 
 ## 🔄 Backup Setup
 
-- [ ] Backup script created: `/var/www/workflow/backup-db.sh`
+- [ ] Backup script created: `/projects/workflow/backup-db.sh`
 - [ ] Backup script permissions set: `chmod +x backup-db.sh`
 - [ ] Cron job configured for daily backups
 

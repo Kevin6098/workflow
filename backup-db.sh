@@ -3,7 +3,7 @@
 # Database Backup Script for Workflow System
 # Usage: ./backup-db.sh
 
-BACKUP_DIR="/var/www/workflow/backups"
+BACKUP_DIR="/projects/workflow/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 DB_NAME="workflow_system"
 DB_USER="workflow_user"
